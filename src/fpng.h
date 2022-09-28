@@ -10,6 +10,8 @@
 	#define FPNG_TRAIN_HUFFMAN_TABLES (0)
 #endif
 
+#define FPNG_RAW_PTRS
+
 namespace fpng
 {
 	// ---- Library initialization - call once to identify if the processor supports SSE.
@@ -46,6 +48,14 @@ namespace fpng
 	// w/h - image dimensions. Image's row pitch in bytes must is w*num_chans.
 	// num_chans must be 3 or 4. 
 	bool fpng_encode_image_to_memory(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, std::vector<uint8_t>& out_buf, uint32_t flags = 0);
+
+	typedef void* (realloc_func)(void *pData, size_t size);
+	typedef void (free_func)(void *pData);
+
+#ifdef FPNG_RAW_PTRS
+	// Similar to fpng_encode_image_to_memory() but uses pointers and allocates memory via pRealloc / frees via pFree. ppOut should not contain a valid pointer on function entry, as it will be overwritten.
+	bool fpng_encode_image_to_memory_ptr(const void* pImage, uint32_t w, uint32_t h, uint32_t num_chans, uint8_t** ppOut, uint64_t& outSize, realloc_func* pRealloc, free_func* pFree, uint32_t flags = 0);
+#endif
 
 #ifndef FPNG_NO_STDIO
 	// Fast PNG encoding to the specified file.
@@ -106,6 +116,14 @@ namespace fpng
 	// If FPNG_DECODE_NOT_FPNG is returned, you must decompress the file with a general purpose PNG decoder.
 	// If another error occurs, the file is likely corrupted or invalid, but you can still try to decompress the file with another decoder (which will likely fail).
 	int fpng_decode_memory(const void* pImage, uint32_t image_size, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
+
+#ifdef FPNG_RAW_PTRS
+	// Provides information about the buffer and the parameters needed for fpng_decode_memory_ptr() to not require the use of std::vector but the full functionality of fpng_decode_memory().
+	int fpng_decode_memory_get_required_capacity(const void* pImage, uint32_t image_size, uint64_t& required_capacity, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels, uint32_t& idat_ofs, uint32_t& idat_len);
+	
+	// Takes parameters retrieved from fpng_decode_memory_get_required_capacity() in order to not require the use of std::vector to archive the functionality of fpng_decode_memory().
+	int fpng_decode_memory_ptr(const void* pImage, uint32_t image_size, uint8_t* pOut, uint64_t out_capacity, uint32_t width, uint32_t height, uint32_t channels_in_file, uint32_t desired_channels, uint32_t idat_ofs, uint32_t idat_len);
+#endif
 
 #ifndef FPNG_NO_STDIO
 	int fpng_decode_file(const char* pFilename, std::vector<uint8_t>& out, uint32_t& width, uint32_t& height, uint32_t& channels_in_file, uint32_t desired_channels);
